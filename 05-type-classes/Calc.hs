@@ -1,8 +1,10 @@
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Calc where
 import ExprT 
 import Parser
---import StackVM
+import qualified StackVM as VM
+import qualified Data.Map as M
 
 eval :: ExprT -> Integer
 eval (Lit i) = i
@@ -50,13 +52,47 @@ instance Expr Mod7 where
   add (Mod7 x) (Mod7 y) = Mod7 $ mod (x + y) 7
   mul (Mod7 x) (Mod7 y) = Mod7 $ mod (x * y) 7
 
-{-
-instance Expr Program where
-  lit n = [PushI n] 
-  add x y = x ++ y ++ [Add]
-  mul x y = x ++ y ++ [Mul]
+instance Expr VM.Program where
+  lit n = [VM.PushI n] 
+  add x y = x ++ y ++ [VM.Add]
+  mul x y = x ++ y ++ [VM.Mul]
 
-compile :: String -> Maybe Program
+compile :: String -> Maybe VM.Program
 compile = parseExp lit add mul
--}
 
+class HasVars a where
+  var :: String -> a
+
+data VarExprT = VLit Integer | VAdd VarExprT VarExprT | VMul VarExprT VarExprT | Var String
+
+instance Expr VarExprT where
+  lit = VLit
+  add = VAdd
+  mul = VMul
+
+instance HasVars VarExprT where
+  var = Var
+
+instance HasVars (M.Map String Integer -> Maybe Integer) where
+  var key = \map ->
+    M.lookup key map 
+
+instance Expr (M.Map String Integer -> Maybe Integer) where
+  lit n = \_ -> Just n 
+  add x y = \map ->
+    let v1 = x map
+        v2 = y map
+    in case (v1, v2) of
+      (Just m, Just n) -> Just (m + n)
+      _ -> Nothing
+  mul x y = \map ->
+    let v1 = x map
+        v2 = y map
+    in case (v1, v2) of
+      (Just m, Just n) -> Just (m * n)
+      _ -> Nothing
+
+withVars :: [(String , Integer)]
+  -> (M.Map String Integer -> Maybe Integer)
+  -> Maybe Integer
+withVars vars exp = exp $ M.fromList vars
