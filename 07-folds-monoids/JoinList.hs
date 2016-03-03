@@ -1,6 +1,11 @@
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+
 module JoinList where
 import Sized
 import Scrabble
+import Data.Monoid
+import Editor
+import Buffer
 
 data JoinList m a = Empty
                   | Single m a
@@ -23,16 +28,16 @@ tag (Append m _ _) = m
 
 indexJ :: (Sized b, Monoid b) =>
           Int -> JoinList b a -> Maybe a
+indexJ n _ | n < 0 = Nothing
 indexJ _ Empty = Nothing
-indexJ i _ | i < 0 = Nothing
-indexJ 0 (Single _ a) = Just a
-indexJ _ (Single _ _) = Nothing
-indexJ i (Append m l r) = 
-  let leftSize = getSize $ size (tag l)
-  in if i >= leftSize then
-    indexJ (i - leftSize) r
-  else
-    indexJ i l
+indexJ n (Single m a)
+  | n == 0 = Just a
+  | otherwise = Nothing
+indexJ n (Append m left right)
+  | n >= getSize (size m) = Nothing
+  | n >= leftSize = indexJ (n - leftSize) right
+  | otherwise = indexJ n left
+  where leftSize = getSize . size . tag $ left
 
 testIndexJ :: Int -> Bool
 testIndexJ i = (indexJ i testJoinList) == (jlToList testJoinList !!? i)
@@ -82,5 +87,37 @@ testTakeJ n = jlToList (takeJ n testJoinList) == take n (jlToList testJoinList)
 scoreLine :: String -> JoinList Score String
 scoreLine str = Single (scoreString str) str
 
+instance Buffer (JoinList (Score, Size) String) where
+  toString = unlines . jlToList 
+  fromString = construct . lines
+  line = indexJ
+  replaceLine n l b = 
+    takeJ n b +++ insertJoinList l (dropJ (n+1) b)
+  numLines = length . jlToList
+  value = getScore . fst . tag
+  
+single :: String -> JoinList(Score, Size) String
+single str = Single (scoreString str, 1) str
 
+-- construct a balanced JoinList each stores a line
+-- we need to keep the order
+-- jlToList $ construct lines == lines
+construct :: [String] -> JoinList (Score, Size) String
+construct = foldr insertJoinList Empty
 
+insertJoinList :: String -> JoinList (Score, Size) String -> JoinList (Score, Size) String
+insertJoinList line Empty = single line
+insertJoinList line jl@(Single m a) = single line +++ jl
+insertJoinList line jl@(Append m l r) = 
+  if mod (getSize . size $ tag jl) 2 == 0
+  then
+    single line +++ jl
+  else
+    insertJoinList line l +++ r
+
+main = runEditor editor $ construct 
+         [ "This buffer is for notes you don't want to save, and for"
+         , "evaluation of steam valve coefficients."
+         , "To load a different file, type the character L followed"
+         , "by the name of the file."
+         ]

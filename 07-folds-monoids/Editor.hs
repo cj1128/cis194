@@ -32,6 +32,11 @@ data Command = View
 commands :: [String]
 commands = map show [View, Edit, Next, Prev, Quit]
 
+-- Patch for new ghc
+instance Applicative (Editor b) where
+  pure = return
+  (<*>) = ap
+
 -- Editor monad
 
 newtype Editor b a = Editor (StateT (b,Int) IO a)
