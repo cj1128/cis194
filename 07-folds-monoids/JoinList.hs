@@ -17,7 +17,7 @@ data JoinList m a = Empty
 (+++) l r = Append (tag l `mappend` tag r) l r
 
 testJoinList :: JoinList Size Char
-testJoinList = ((Single 1 'y') +++ 
+testJoinList = ((Single 1 'y') +++
   ((Single 1 'e') +++ (Single 1 'a')))
   +++ (Single 1 'h')
 
@@ -58,11 +58,11 @@ dropJ :: (Sized b, Monoid b) =>
 dropJ _ Empty = Empty
 dropJ i jl | i < 1 = jl
 dropJ _ (Single _ _) = Empty
-dropJ i (Append _ l r) = 
+dropJ i (Append _ l r) =
   let leftSize = getSize $ size (tag l)
-  in if i > leftSize then 
+  in if i > leftSize then
     dropJ (i - leftSize) r
-  else 
+  else
     (dropJ i l) +++ r
 
 testDropJ :: Int -> Bool
@@ -75,9 +75,11 @@ takeJ i _ | i <= 0 = Empty
 takeJ _ jl@(Single _ _) = jl
 takeJ n (Append _ l r) =
   let leftSize = getSize $ size (tag l)
-  in if n > leftSize then 
+  in if n > leftSize then
     l +++ takeJ (n - leftSize) r
-  else 
+  else if n == leftSize then
+    l
+  else
     takeJ n l
 
 
@@ -88,14 +90,15 @@ scoreLine :: String -> JoinList Score String
 scoreLine str = Single (scoreString str) str
 
 instance Buffer (JoinList (Score, Size) String) where
-  toString = unlines . jlToList 
+  toString = unlines . jlToList
   fromString = construct . lines
   line = indexJ
-  replaceLine n l b = 
+  -- after replace, the tree is not balanced
+  replaceLine n l b =
     takeJ n b +++ insertJoinList l (dropJ (n+1) b)
   numLines = length . jlToList
   value = getScore . fst . tag
-  
+
 single :: String -> JoinList(Score, Size) String
 single str = Single (scoreString str, 1) str
 
@@ -108,14 +111,14 @@ construct = foldr insertJoinList Empty
 insertJoinList :: String -> JoinList (Score, Size) String -> JoinList (Score, Size) String
 insertJoinList line Empty = single line
 insertJoinList line jl@(Single m a) = single line +++ jl
-insertJoinList line jl@(Append m l r) = 
+insertJoinList line jl@(Append m l r) =
   if mod (getSize . size $ tag jl) 2 == 0
   then
     single line +++ jl
   else
     insertJoinList line l +++ r
 
-main = runEditor editor $ construct 
+main = runEditor editor $ construct
          [ "This buffer is for notes you don't want to save, and for"
          , "evaluation of steam valve coefficients."
          , "To load a different file, type the character L followed"
