@@ -5,6 +5,11 @@ toDigits i
   | i <= 0 = []
   | otherwise = map (toInteger . digitToInt) $ show i
 
+toDigits2 :: Integer -> [Integer]
+toDigits2 i
+  | i <= 0 = []
+  | otherwise = toDigits (div i 10) ++ [mod i 10]
+
 toDigitsRev :: Integer -> [Integer]
 toDigitsRev = reverse . toDigits
 
