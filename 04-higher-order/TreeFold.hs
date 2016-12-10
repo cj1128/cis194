@@ -5,7 +5,6 @@ foldTree = foldr insertTree Leaf
 
 insertTree :: a -> Tree a -> Tree a
 insertTree value Leaf = Node 0 Leaf value Leaf
-
 insertTree value (Node height left nodeValue right)
   | nodeHeight left < nodeHeight right = 
     let newLeft = insertTree value left
@@ -17,5 +16,3 @@ insertTree value (Node height left nodeValue right)
 nodeHeight :: Tree a -> Integer
 nodeHeight (Node height _ _ _) = height
 nodeHeight otherwise = -1
-
-
